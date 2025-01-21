@@ -114,42 +114,56 @@ class Player:
         return f'("id": {self.id}, "username": {self.username}, "score": {self.score}, "win_rate": {self.win_rate}, "country": {self.country})'
 
 class Visualizing:
-    def pretty_lst(self, lst: List[Player]) -> str:
-        pretty_lst: str = '['
-        for i in range(len(lst)):
-            if i == len(lst) - 1:
-                pretty_lst += "\t" + str(lst[i])
-            elif i == 0:
-                pretty_lst += " " + str(lst[i]) + ",\n"
-            else:
-                pretty_lst += "\t " + str(lst[i]) + ",\n"
-        return pretty_lst + "\n\t]"
-
-    def sort_process(self, step: int, current_state: List[Player], is_swapped: bool, i: int, j: int) -> None:
+    def pretty_lst(self, lst: List[Player], is_swapped: bool, i: int, j: int) -> str:
         if is_swapped:
-            self.print_line(step, current_state, 'Swap', i, j)
+            pretty_lst: str = "["
+            for x in range(len(lst)):
+                if (x == len(lst) -1):
+                    if x == i or x == j:
+                        pretty_lst += "!" + str(lst[x]) + "!"
+                    else:
+                        pretty_lst += "\t " + str(lst[x])
+                elif x == 0:
+                    if x ==i or x == j:
+                        pretty_lst += "!" + str(lst[x]) + "!,\n"
+                    else:
+                        pretty_lst += "\t " + str(lst[i]) + ",\n"
+                else:
+                    if x ==i or x == j:
+                        pretty_lst += "!" + str(lst[x]) + "!,\n"
+                    else:
+                        pretty_lst += "\t " + str(lst[i]) + ",\n"
+            return pretty_lst + "\n\t]"
         else:
-            self.print_line(step, current_state, 'No Swap', i, j)
+            pretty_lst: str = '['
+            for i in range(len(lst)):
+                if i == len(lst) - 1:
+                    pretty_lst += "\t " + str(lst[i])
+                elif i == 0:
+                    pretty_lst += " " + str(lst[i]) + ",\n"
+                else:
+                    pretty_lst += "\t " + str(lst[i]) + ",\n"
+            return pretty_lst + "\n\t]"
 
     def complete(self, type_sort: str, before_lst: List[Player], after_lst: List[Player], time_taken: float) -> None:
         print(f"Final Result for {type_sort}:")
         print(f"Total time taken: {time_taken:.6f}s")
         print(f'Before {type_sort}:')
-        print(f'{self.pretty_lst(before_lst)}')
+        print(f'{self.pretty_lst(before_lst, False, 0, 0)}')
         print(f'After {type_sort}:')
-        print(f'{self.pretty_lst(after_lst)}')
+        print(f'{self.pretty_lst(after_lst, False, 0, 0)}')
         print("=" * 100)
 
-    def print_line(self, step: int, current_state: List[Player], swap: str, i: int, j: int) -> None:
-        print(f'Steps: {step}: {swap}!')
+    def before_swap(self, step: int, current_state: List[Player], swap: str, i: int, j: int, is_swapped: bool) -> None:
+        print(f'Steps {step}: {swap}!')
         print(f'Looking at index: {i} and {j}')
-        # Animate...
-        self.animate_swap()
+        print(f"Before swap:")
+        print(f'{self.pretty_lst(current_state, is_swapped, i, j)}')
 
-        print(f'{self.pretty_lst(current_state)}')
+    def after_swap(self, current_state: List[Player], is_swapped: bool) -> None:
+        print(f"After swaps:")
+        print(f'{self.pretty_lst(current_state, is_swapped, 0, 0)}')
         print("=" * 100)
-
-    def animate_swap(self) -> None:
 
 class SortingTournament:
     def __init__(self, players: List[dict[str, int] | dict[str, str] | dict[str, float]]) -> None:
@@ -218,13 +232,15 @@ class SortingTournament:
 
     def do_swap(self, i: int, currentDex: int) -> bool:
         if currentDex != i:
+            self.visual.before_swap(self.select_stats['steps'], self.lst_players, 'Swap', i, currentDex, True)
             temp: Player = self.lst_players[i]
             self.lst_players[i] = self.lst_players[currentDex]
             self.lst_players[currentDex] = temp
             self.select_stats['swaps'] += 1
-            self.visual.sort_process(self.select_stats['steps'], self.lst_players, True, i, currentDex)
+            self.visual.after_swap(self.lst_players, True)
         else:
-            self.visual.sort_process(self.select_stats['steps'], self.lst_players, False, i, currentDex)
+            self.visual.before_swap(self.select_stats['steps'], self.lst_players, 'No Swap', i, currentDex, False)
+            self.visual.after_swap(self.lst_players, False)
 
 #==============================================================================================================================
 players: List[dict[str, int] | dict[str, str] | dict[str, float]] = [ 
