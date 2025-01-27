@@ -96,6 +96,8 @@ Sample Test Cases test_cases = [
 #==============================================================================================================================
 
 from typing import List
+from typing import Dict
+import numpy as np
 import time
 
 
@@ -114,142 +116,145 @@ class Player:
         return f'("id": {self.id}, "username": {self.username}, "score": {self.score}, "win_rate": {self.win_rate}, "country": {self.country})'
 
 class Visualizing:
-    def pretty_lst(self, lst: List[Player], is_swapped: bool, i: int, j: int) -> str:
-        if is_swapped:
-            pretty_lst: str = "["
-            for x in range(len(lst)):
-                if (x == len(lst) -1):
-                    if x == i or x == j:
-                        pretty_lst += "!" + str(lst[x]) + "!"
-                    else:
-                        pretty_lst += "\t " + str(lst[x])
-                elif x == 0:
-                    if x ==i or x == j:
-                        pretty_lst += "!" + str(lst[x]) + "!,\n"
-                    else:
-                        pretty_lst += "\t " + str(lst[i]) + ",\n"
-                else:
-                    if x ==i or x == j:
-                        pretty_lst += "!" + str(lst[x]) + "!,\n"
-                    else:
-                        pretty_lst += "\t " + str(lst[i]) + ",\n"
-            return pretty_lst + "\n\t]"
-        else:
-            pretty_lst: str = '['
-            for i in range(len(lst)):
-                if i == len(lst) - 1:
-                    pretty_lst += "\t " + str(lst[i])
-                elif i == 0:
-                    pretty_lst += " " + str(lst[i]) + ",\n"
-                else:
-                    pretty_lst += "\t " + str(lst[i]) + ",\n"
-            return pretty_lst + "\n\t]"
+    @staticmethod
+    def pretty_lst(lst: List[Player], highlight_indices=None) -> None:
+        output: str = "[\n"
+        for i, player in enumerate(lst):
+            if highlight_indices and i in highlight_indices:
+                output += f"\t!{player}!\n"
+            else:
+                output += f"\t {player}\n"
+        output += "]"
+        return output
 
-    def complete(self, type_sort: str, before_lst: List[Player], after_lst: List[Player], time_taken: float) -> None:
-        print(f"Final Result for {type_sort}:")
-        print(f"Total time taken: {time_taken:.6f}s")
-        print(f'Before {type_sort}:')
-        print(f'{self.pretty_lst(before_lst, False, 0, 0)}')
-        print(f'After {type_sort}:')
-        print(f'{self.pretty_lst(after_lst, False, 0, 0)}')
+    def show_step(self, step: int, players: List[Player], action: str, indices=None):
+        print(f"Step {step}: {action}")
+        print(self.pretty_lst(players, highlight_indices=indices))
         print("=" * 100)
 
-    def before_swap(self, step: int, current_state: List[Player], swap: str, i: int, j: int, is_swapped: bool) -> None:
-        print(f'Steps {step}: {swap}!')
-        print(f'Looking at index: {i} and {j}')
-        print(f"Before swap:")
-        print(f'{self.pretty_lst(current_state, is_swapped, i, j)}')
+    def show_summary(self, sorting_type: str, before: List[Player], after: List[Player], time_taken: float):
+        print(f"Final Result ({sorting_type}):")
+        print(f"Time Taken: {time_taken:.6f} seconds")
+        print("Before Sorting:")
+        print(self.pretty_lst(before))
+        print("After Sorting:")
+        print(self.pretty_lst(after))
 
-    def after_swap(self, current_state: List[Player], is_swapped: bool) -> None:
-        print(f"After swaps:")
-        print(f'{self.pretty_lst(current_state, is_swapped, 0, 0)}')
+    def show_final_result(self, lst: List[Player]) -> None:
         print("=" * 100)
+        print("Final Sorted Result:")
+        for i in range(len(lst)):
+            print(f"{i + 1}. {lst[i].username} ({lst[i].country}) - {lst[i].score} pts, {lst[i].win_rate}%")
+
+    def country_analysis(self, lst: List[Player]) -> None:
+        print("=" * 100)
+        print("Country Analysis:")
+        total_score: List[int] = []
+        dict_country: Dict[str, List[int]] = {}
+        for i in range(len(lst)):
+            if lst[i].country in dict_country.keys():
+                dict_country[lst[i].country].append(lst[i].score)
+            else:
+                dict_country.update({lst[i].country : [lst[i].score]})
+            total_score.append(lst[i].score)
+
+        for country, scores in dict_country.items():
+            print(f"{country}: Average Score: {round(np.mean(scores))}, Median Score: {round(np.median(scores))}")
 
 class SortingTournament:
-    def __init__(self, players: List[dict[str, int] | dict[str, str] | dict[str, float]]) -> None:
-        self.lst_players: List[Player] = self.get_players(players)
-        self.original: List[Player] = self.lst_players[:]
-        self.select_stats: dict[str, int] = {"steps": 1, "comparisons": 0, 'swaps': 0}
-        self.visual: Visualizing = Visualizing()
+    def __init__(self, players: List[Dict]):
+        self.players = [Player(**player) for player in players]
+        self.original_players = self.players[:]
+        self.stats = {"steps": 1, "comparisons": 0, "swaps": 0}
+        self.visualizer = Visualizing()
+        self.ask_sort()
 
-    def get_players(self, players: List[dict[str, int] | dict[str, str] | dict[str, float]]) -> List[Player]:
-        changed_lst: List[Player] = []
-
-        for player in players:
-            changed_lst.append(Player(player["id"], player['username'], player['score'], player['win_rate'], player['country']))
-
-        return changed_lst
-
-    def do_compare(self, sort_by: str, player1: Player, player2: Player) -> bool:
-        if sort_by.lower() == 'score':
-            p1_val: int = player1.score
-            p2_val: int = player2.score
-            if self.is_equal(p1_val, p2_val):
-                return self.do_compare('win_rate', player1, player2)
-            return self.compairing(p1_val, p2_val)
-
-        elif sort_by.lower() == 'win_rate':
-            p1_val: float = player1.win_rate
-            p2_val: float = player2.win_rate
-            if self.is_equal(p1_val, p2_val):
-                return self.do_compare('username', player1, player2)
-            return self.compairing(p1_val, p2_val)
-
-        elif sort_by.lower() == 'username':
-            p1_val: str = player1.username
-            p2_val: str = player2.username
-            return self.compairing(p1_val, p2_val)
-        else:
-            return False
-
-    def is_equal(self, val1: int | float | str, val2: int | float | str) -> bool:
-        return val1 == val2
-
-    def compairing(self, p1_value: int | float | str, p2_value: int | float | str) -> bool:
-        return p2_value > p1_value
-
-    def selection_sort(self) -> List[Player]:
-        if len(self.lst_players) <= 0:
-            print("len student == 0.")
-            return self.lst_players
-
+    def ask_sort(self):
         print("=" * 100)
-        print("Selection Sort Process:")
-        start: float = time.time()
-        for i in range(len(self.lst_players)):
-            currentDex: int = i
-            for j in range(i + 1, len(self.lst_players)):
-                if self.do_compare('score', self.lst_players[j], self.lst_players[currentDex]):
-                    self.select_stats['comparisons'] += 1
-                    currentDex = j
-
-            self.do_swap(i, currentDex)
-            self.select_stats['steps'] += 1
-    
-        end: float = time.time()
-        self.visual.complete('Selection Sort', self.original, self.lst_players, end - start)
-        return self.lst_players
-
-    def do_swap(self, i: int, currentDex: int) -> bool:
-        if currentDex != i:
-            self.visual.before_swap(self.select_stats['steps'], self.lst_players, 'Swap', i, currentDex, True)
-            temp: Player = self.lst_players[i]
-            self.lst_players[i] = self.lst_players[currentDex]
-            self.lst_players[currentDex] = temp
-            self.select_stats['swaps'] += 1
-            self.visual.after_swap(self.lst_players, True)
+        print("Choose sorting method:")
+        print("1. Selection Sort")
+        print("2. Bubble Sort")
+        choice = input("Enter choice (1/2): ")
+        if choice == "1":
+            self.selection_sort()
+        elif choice == "2":
+            self.bubble_sort()
         else:
-            self.visual.before_swap(self.select_stats['steps'], self.lst_players, 'No Swap', i, currentDex, False)
-            self.visual.after_swap(self.lst_players, False)
+            print("Invalid choice. Try again.")
+            self.ask_sort()
+        print("=" * 100)
+
+    def selection_sort(self):
+        print("=" * 100)
+        print("Selection Sort:")
+        start_time = time.time()
+        for i in range(len(self.players)):
+            min_index = i
+            for j in range(i + 1, len(self.players)):
+                self.stats["comparisons"] += 1
+                if self.compare(self.players[j], self.players[min_index]):
+                    min_index = j
+            self.swap(i, min_index)
+        time_taken = time.time() - start_time
+        self.visualizer.show_summary("Selection Sort", self.original_players, self.players, time_taken)
+        self.visualizer.show_final_result(self.players)
+        self.visualizer.country_analysis(self.players)
+
+    def bubble_sort(self):
+        print("=" * 100)
+        print("Bubble Sort")
+        start_time = time.time()
+        for i in range(len(self.players) - 1):
+            swapped = False
+            for j in range(len(self.players) - 1 - i):
+                self.stats["comparisons"] += 1
+                if self.compare(self.players[j + 1], self.players[j]):
+                    self.swap(j, j + 1)
+                    swapped = True
+            if not swapped:
+                break
+        time_taken = time.time() - start_time
+        self.visualizer.show_summary("Bubble Sort", self.original_players, self.players, time_taken)
+        self.visualizer.show_final_result(self.players)
+        self.visualizer.country_analysis(self.players)
+
+    def compare(self, player1: Player, player2: Player) -> bool:
+        if player1.score != player2.score:
+            return player1.score > player2.score
+        if player1.win_rate != player2.win_rate:
+            return player1.win_rate > player2.win_rate
+        return player1.username < player2.username
+
+    def swap(self, i: int, j: int):
+        if i != j:
+            self.stats["swaps"] += 1
+            self.visualizer.show_step(self.stats["steps"], self.players, f"Swapping indices {i} and {j}", indices=[i, j])
+            self.players[i], self.players[j] = self.players[j], self.players[i]
+            self.stats["steps"] += 1
 
 #==============================================================================================================================
-players: List[dict[str, int] | dict[str, str] | dict[str, float]] = [ 
+# Test Case 1: Same scores, different win rates.
+players1: List[dict[str, int] | dict[str, str] | dict[str, float]] = [
+        {"id": "P1", "username": "Alpha", "score": 1000, "win_rate": 60.0, "country": "US"}, 
+        {"id": "P2", "username": "Beta", "score": 1000, "win_rate": 70.0, "country": "US"}
+]
+st1: SortingTournament = SortingTournament(players1)
+
+
+# Test Case 2: Same scores and win rates.
+players2: List[dict[str, int] | dict[str, str] | dict[str, float]] = [
+        {"id": "P3", "username": "Charlie", "score": 1500, "win_rate": 80.0, "country": "JP"}, 
+        {"id": "P4", "username": "Alpha", "score": 1500, "win_rate": 80.0, "country": "KR"}
+]
+st2: SortingTournament = SortingTournament(players2)
+
+# Test Case 3: Mixed cases
+players3: List[dict[str, int] | dict[str, str] | dict[str, float]] = [ 
         {"id": "P5", "username": "Delta", "score": 1200, "win_rate": 75.0, "country": "US"}, 
         {"id": "P6", "username": "Echo", "score": 1200, "win_rate": 75.0, "country": "JP"}, 
         {"id": "P7", "username": "Alpha", "score": 1200, "win_rate": 75.0, "country": "KR"} 
     ]
 
-st1: SortingTournament = SortingTournament(players)
-st1.selection_sort()
+st3: SortingTournament = SortingTournament(players3)
 
 #==============================================================================================================================
